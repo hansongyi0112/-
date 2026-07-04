@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>진로 나침반 — 나의 별자리 찾기</title>
+<style>
+  :root{
+    --night:#10142E;
+    --night2:#181D3F;
+    --card:#1E2450;
+    --card-edge:rgba(160,170,255,.16);
+    --ink:#F2F3FB;
+    --ink-dim:#9AA1C9;
+    --star:#FFD66B;
+    --aurora-a:#8B7CF6;
+    --aurora-b:#5EE6D0;
+    --danger:#FF8FA3;
+    --radius:22px;
+    --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{font-size:16px}
+  body{
+    font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+    background:
+      radial-gradient(1200px 700px at 85% -10%, rgba(139,124,246,.22), transparent 60%),
+      radial-gradient(900px 600px at -10% 110%, rgba(94,230,208,.14), transparent 55%),
+      var(--night);
+    color:var(--ink);
+    min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;
+    overflow-x:hidden;
+    line-height:1.6;
+  }
+  #field{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .dot{position:absolute;border-radius:50%;background:#fff;opacity:.35;animation:tw 4s ease-in-out infinite}
+  @keyframes tw{0%,100%{opacity:.12;transform:scale(.8)}50%{opacity:.55;transform:scale(1.15)}}
+
+  .wrap{width:min(640px,100%);padding:20px 20px 48px;position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh}
+
+  header{padding:14px 4px 6px}
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand b{font-size:1.05rem;letter-spacing:-.01em}
+  .brand span{font-family:var(--mono);font-size:.68rem;color:var(--ink-dim);letter-spacing:.14em;text-transform:uppercase}
+  #skyBox{margin-top:10px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0));border:1px solid var(--card-edge);border-radius:18px;padding:8px 12px 4px;display:none}
+  #skyLabel{font-family:var(--mono);font-size:.66rem;color:var(--ink-dim);letter-spacing:.12em;display:flex;justify-content:space-between;padding:2px 4px}
+  #sky{width:100%;height:64px;display:block}
+  .cline{stroke:rgba(255,214,107,.0);stroke-width:1.4;transition:stroke .6s ease}
+  .cline.on{stroke:rgba(255,214,107,.55)}
+  .cstar{fill:#3A4173;transition:fill .5s ease}
+  .cstar.on{fill:var(--star)}
+  .cstar.on.glow{filter:drop-shadow(0 0 6px rgba(255,214,107,.9))}
+  .halo{fill:none;stroke:rgba(255,214,107,0);stroke-width:1}
+  .halo.on{animation:pulse 2.4s ease-out infinite}
+  @keyframes pulse{0%{stroke:rgba(255,214,107,.6)}100%{stroke:rgba(255,214,107,0)}}
+
+  main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:18px 0}
+  .screen{animation:rise .45s cubic-bezier(.22,.9,.3,1) both}
+  .screen.leaving{animation:fall .3s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+  @keyframes fall{to{opacity:0;transform:translateY(-18px)}}
+
+  .qnum{font-family:var(--mono);font-size:.7rem;letter-spacing:.18em;color:transparent;
+    background:linear-gradient(90deg,var(--aurora-a),var(--aurora-b));-webkit-background-clip:text;background-clip:text;
+    margin-bottom:14px}
+  h1{font-size:clamp(1.55rem,5.4vw,2.1rem);font-weight:800;letter-spacing:-.03em;line-height:1.32;word-break:keep-all}
+  h1 em{font-style:normal;background:linear-gradient(90deg,var(--aurora-a),var(--aurora-b));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{margin-top:10px;color:var(--ink-dim);font-size:.94rem;word-break:keep-all}
+
+  .body{margin-top:26px}
+
+  input[type=text],input[type=date],input[type=time],textarea{
+    width:100%;background:var(--card);border:1.5px solid var(--card-edge);color:var(--ink);
+    border-radius:16px;padding:16px 18px;font-size:1.02rem;font-family:inherit;outline:none;
+    transition:border-color .2s, box-shadow .2s;color-scheme:dark;
+  }
+  input:focus,textarea:focus{border-color:var(--aurora-a);box-shadow:0 0 0 4px rgba(139,124,246,.18)}
+  textarea{min-height:128px;resize:vertical;line-height:1.7}
+  .stack>*+*{margin-top:12px}
+  .lbl{display:block;font-size:.8rem;color:var(--ink-dim);margin:0 0 6px 4px;letter-spacing:.02em}
+
+  .chips{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{
+    border:1.5px solid var(--card-edge);background:var(--card);color:var(--ink);
+    padding:12px 18px;border-radius:999px;font-size:.96rem;cursor:pointer;user-select:none;
+    transition:transform .12s, border-color .2s, background .2s;position:relative;font-family:inherit;
+  }
+  .chip:active{transform:scale(.95)}
+  .chip.sel{border-color:transparent;background:linear-gradient(135deg,rgba(139,124,246,.35),rgba(94,230,208,.28));box-shadow:inset 0 0 0 1.5px rgba(139,124,246,.8)}
+  .chip .ord{
+    position:absolute;top:-8px;right:-6px;width:22px;height:22px;border-radius:50%;
+    background:var(--star);color:#3A2E00;font-size:.72rem;font-weight:800;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4);
+  }
+  .chips.big .chip{padding:16px 22px;font-size:1.05rem}
+
+  .nav{margin-top:34px;display:flex;gap:12px;align-items:center}
+  .btn{
+    flex:1;border:none;border-radius:18px;padding:17px 20px;font-size:1.05rem;font-weight:800;cursor:pointer;
+    font-family:inherit;letter-spacing:-.01em;transition:transform .12s, filter .2s;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:linear-gradient(100deg,var(--aurora-a),var(--aurora-b));color:#0D1030;box-shadow:0 10px 28px rgba(110,140,240,.35)}
+  .btn.ghost{flex:0 0 auto;background:transparent;border:1.5px solid var(--card-edge);color:var(--ink-dim);padding:17px 18px}
+  .btn.gold{background:linear-gradient(100deg,#FFD66B,#FFB86B);color:#3A2400}
+  .btn.cloud{background:var(--card);border:1.5px solid var(--card-edge);color:var(--ink)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .skip{margin-top:14px;text-align:center}
+  .skip button{background:none;border:none;color:var(--ink-dim);font-size:.85rem;cursor:pointer;text-decoration:underline;text-underline-offset:3px;font-family:inherit}
+  .err{color:var(--danger);font-size:.85rem;margin-top:10px;display:none}
+
+  .hero-badge{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;color:var(--ink-dim);border:1px solid var(--card-edge);border-radius:999px;padding:7px 14px;margin-bottom:22px}
+  .hero-badge i{width:6px;height:6px;border-radius:50%;background:var(--star);box-shadow:0 0 8px var(--star)}
+  .big-title{font-size:clamp(2.2rem,9vw,3.2rem);font-weight:900;letter-spacing:-.045em;line-height:1.18}
+  .big-title em{font-style:normal;background:linear-gradient(90deg,var(--aurora-a),var(--aurora-b));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .modeCards{margin-top:34px;display:grid;gap:14px}
+  .modeCard{
+    text-align:left;border:1.5px solid var(--card-edge);background:linear-gradient(160deg,rgba(255,255,255,.045),rgba(255,255,255,.01));
+    border-radius:var(--radius);padding:22px;cursor:pointer;color:var(--ink);font-family:inherit;
+    transition:transform .15s, border-color .2s;display:flex;gap:16px;align-items:center;width:100%;
+  }
+  .modeCard:active{transform:scale(.98)}
+  .modeCard .ic{font-size:1.9rem}
+  .modeCard b{font-size:1.12rem;display:block;letter-spacing:-.02em}
+  .modeCard span{font-size:.84rem;color:var(--ink-dim)}
+  .modeCard .go{margin-left:auto;color:var(--aurora-b);font-size:1.2rem}
+  .bobRow{display:flex;gap:12px;font-size:1.7rem;margin-bottom:16px}
+  .bobRow span{display:inline-block;animation:bob 2.6s ease-in-out infinite}
+  .bobRow span:nth-child(2){animation-delay:.35s}
+  .bobRow span:nth-child(3){animation-delay:.7s}
+  .bobRow span:nth-child(4){animation-delay:1.05s}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-8px) rotate(6deg)}}
+  .big-title .fun{background:linear-gradient(90deg,#FFD66B,#FF9AC4,#5EE6D0);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .funny{margin-top:14px;font-size:.85rem;color:var(--ink-dim);background:rgba(255,214,107,.08);border:1px dashed rgba(255,214,107,.35);border-radius:14px;padding:12px 16px;line-height:1.7}
+  .credit{position:fixed;right:14px;bottom:14px;z-index:8;font-size:.78rem;font-weight:800;
+    background:linear-gradient(100deg,#FFD66B,#FF9AC4);color:#4A2400;padding:9px 16px;border-radius:999px;
+    box-shadow:0 8px 22px rgba(255,170,140,.35);transform:rotate(-2deg)}
+
+  .consentBox{background:var(--card);border:1px solid var(--card-edge);border-radius:var(--radius);padding:20px;font-size:.88rem;color:var(--ink-dim);line-height:1.75}
+  .consentBox b{color:var(--ink)}
+  .agree{margin-top:16px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;user-select:none}
+  .agree .box{flex:0 0 24px;height:24px;border-radius:8px;border:1.5px solid var(--card-edge);background:var(--card);display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:2px}
+  .agree.on .box{background:linear-gradient(135deg,var(--aurora-a),var(--aurora-b));border-color:transparent}
+  .agree .box svg{opacity:0;transition:opacity .2s}
+  .agree.on .box svg{opacity:1}
+  .agree p{font-size:.9rem}
+
+  .doneStar{font-size:3rem;text-align:center;animation:spinIn 1s cubic-bezier(.2,.9,.3,1.2) both}
+  @keyframes spinIn{from{transform:scale(0) rotate(-160deg);opacity:0}to{transform:none;opacity:1}}
+  .summary{
+    margin-top:22px;background:#0C0F24;border:1px solid var(--card-edge);border-radius:var(--radius);
+    padding:20px;font-family:var(--mono);font-size:.78rem;line-height:1.8;color:#C9CFF2;
+    white-space:pre-wrap;max-height:300px;overflow-y:auto;word-break:break-all;
+  }
+  .toast{
+    position:fixed;bottom:28px;left:50%;transform:translate(-50%,90px);background:var(--star);color:#3A2400;
+    font-weight:800;font-size:.9rem;padding:13px 26px;border-radius:999px;box-shadow:0 12px 30px rgba(0,0,0,.5);
+    transition:transform .35s cubic-bezier(.2,.9,.3,1.2);z-index:50;max-width:88vw;text-align:center;
+  }
+  .toast.show{transform:translate(-50%,0)}
+
+  footer{padding:8px 4px 0;text-align:center;font-size:.7rem;color:rgba(154,161,201,.55);font-family:var(--mono);letter-spacing:.08em}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+  button:focus-visible,input:focus-visible,textarea:focus-visible,.agree:focus-visible,.chip:focus-visible{outline:2px solid var(--aurora-b);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="field"></div>
+<div class="wrap">
+  <header>
+    <div class="brand"><b>🧭 진로 나침반</b><span>FIND YOUR STAR</span></div>
+    <div id="skyBox">
+      <div id="skyLabel"><span id="skyName">나의 별자리</span><span id="skyCount"></span></div>
+      <svg id="sky" viewBox="0 0 600 64" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+  </header>
+  <main id="stage"></main>
+  <footer>이 기록은 상담 참고용이며, 진로의 최종 결정은 언제나 나의 몫입니다.</footer>
+</div>
+<div class="toast" id="toast">복사됐어요 ✓</div>
+
+<script>
+/* ============================================================
+   ★ 선생님 설정 구역 ★
+   구글 시트로 저장하려면 아래 따옴표 안에
+   Apps Script 웹앱 배포 URL을 붙여넣으세요.
+   (설정 방법은 함께 받은 안내를 참고)
+   예: const SHEET_URL = "https://script.google.com/macros/s/XXXX/exec";
+   ============================================================ */
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbwAQEdRndnsRc4SCg911nc5mRyTav5Hz40zCn_tb1QnpRh3G26PmC0bEy8dydXRCK730g/exec";
+
+/* ================= ambient stars ================= */
+(function(){
+  const f=document.getElementById('field');
+  for(let i=0;i<46;i++){
+    const d=document.createElement('div');d.className='dot';
+    const s=Math.random()*2.2+.6;
+    d.style.cssText='width:'+s+'px;height:'+s+'px;left:'+(Math.random()*100)+'%;top:'+(Math.random()*100)+'%;animation-delay:'+(Math.random()*4)+'s;animation-duration:'+(3+Math.random()*4)+'s';
+    f.appendChild(d);
+  }
+})();
+
+/* ================= question definitions ================= */
+const RANK_OPTS=['💰 돈','🛡️ 안정','🕊️ 자유','👏 인정','🎢 재미','🌱 의미'];
+const STUDY_OPTS=['🙋 혼자 할 때','👯 친구랑 같이','🎧 들으면서','📖 읽으면서','🛠️ 직접 해보며','📱 영상으로'];
+
+const STUDENT_Q=[
+ {id:'name',type:'text',t:'너를 뭐라고 부르면 좋을까?',s:'이름이나 닉네임, 편한 걸로.',ph:'예: 서유, 별명도 OK',req:1},
+ {id:'school',type:'text',t:'학교와 학년을 알려줘',ph:'예: ○○중학교 1학년',req:1},
+ {id:'birth',type:'birth',t:'네가 태어난 순간의 하늘 정보 ✨',s:'사주 참고 해석에 쓰여. 태어난 시간은 부모님께 꼭 물어봐서 적어줘!',req:1},
+ {id:'events',type:'textarea',t:'지금까지 살면서 <em>큰 변화</em>가 있었던 해가 있어?',s:'이사, 전학, 많이 아팠던 해, 가족의 변화 같은 것. 기억나는 만큼만.',ph:'예: 2022년 전학, 2024년 이사',opt:1},
+ {id:'flow',type:'textarea',t:'시간 가는 줄 모르고 하게 되는 게 뭐야?',s:'최대 3가지. 게임이든 그림이든 수다든, 솔직하게!',ph:'예: 친구들이랑 영상 찍기, 웹툰 정주행...',req:1},
+ {id:'subj',type:'twotext',t:'과목 이야기를 해보자',s:'"왜"가 제일 중요해. 내용이 좋아서? 선생님이 좋아서?',a:'제일 좋아하는 과목과 이유',b:'제일 싫어하는 과목과 이유',req:1},
+ {id:'praise',type:'textarea',t:'남들이 "너 이거 잘한다"라고 말해주는 건?',s:'친구, 가족, 선생님이 해준 말을 떠올려봐.',ph:'예: 말을 조리있게 잘한대, 분위기를 잘 띄운대',req:1},
+ {id:'never',type:'textarea',t:'이건 <em>절대</em> 하기 싫다! 하는 일은?',s:'싫은 것에는 나에 대한 힌트가 가장 많이 숨어 있어.',ph:'예: 하루종일 앉아만 있는 일. 답답해서.',req:1},
+ {id:'envy',type:'textarea',t:'부러운 사람이 있어? 어떤 점이 부러워?',s:'연예인, 유튜버, 아는 언니오빠 누구든.',ph:'예: ○○ 유튜버. 하고 싶은 걸 하면서 사는 게 부러움',req:1},
+ {id:'rank',type:'rank',t:'일을 고를 때 뭐가 제일 중요해?',s:'중요한 순서대로 탭! 다시 누르면 취소돼. (3개 이상)',opts:RANK_OPTS,req:1},
+ {id:'study',type:'chips',t:'나는 이렇게 할 때 제일 잘 돼',s:'공부나 뭔가를 배울 때. 여러 개 골라도 돼.',opts:STUDY_OPTS,req:1},
+ {id:'future',type:'textarea',t:'10년 뒤의 어느 하루를 상상해서 그려줘',s:'아침에 일어나서 잘 때까지. 어디서, 누구와, 뭘 하고 있을까?',ph:'정답 없음! 마음껏 상상하기.',req:1},
+ {id:'worry',type:'textarea',t:'요즘 진로 생각하면 걱정되는 게 있어?',s:'한 가지만이라도. 없으면 없다고 해도 돼.',ph:'예: 하고 싶은 게 없어서 걱정',opt:1},
+ {id:'want',type:'textarea',t:'이번 상담에서 <em>꼭 알고 싶은 것</em>은?',s:'1~3가지. 이게 우리 대화의 나침반이 될 거야.',ph:'예: 내가 뭘 잘하는지, 어떤 고등학교가 맞을지',req:1},
+];
+
+const PARENT_Q=[
+ {id:'pname',type:'twotext',t:'부모님과 자녀를 소개해 주세요',s:'부모님과 아이의 성향을 나란히 비교해 보려면 두 분 정보가 모두 필요해요.',a:'부모님 성함 (예: 한송이)',b:'자녀 이름과 관계 (예: 신서유 엄마)',req:1},
+ {id:'pbirth',type:'birth',t:'부모님 <em>본인</em>이 태어난 순간 🌙',s:'부모의 기질과 아이의 기질을 나란히 놓고 보기 위해서예요.',req:1},
+ {id:'birth',type:'birth',t:'자녀가 태어난 순간 ✨',s:'태어난 시간까지 꼭 채워주세요. 두 사주를 비교하는 핵심 재료입니다.',req:1},
+ {id:'immerse',type:'textarea',t:'아이가 <em>몰입</em>할 때는 언제인가요?',s:'말리기 전까지 계속하는 것, 눈빛이 달라지는 순간.',req:1},
+ {id:'trait',type:'textarea',t:'어릴 때부터 지금까지 변하지 않은 아이의 특성은?',ph:'예: 낯을 가리지만 한번 친해지면 깊게 사귐',req:1},
+ {id:'hope',type:'textarea',t:'부모님이 기대하는 진로가 있다면, 그 이유와 함께요',s:'없다면 "없음"도 좋은 답입니다.',req:1},
+ {id:'conflict',type:'textarea',t:'아이와 진로 이야기를 하면 어떤 갈등이 생기나요?',ph:'예: 공부 얘기만 나오면 방으로 들어가버려요',req:1},
+ {id:'support',type:'textarea',t:'지원 가능한 범위는 어느 정도인가요?',s:'시간·비용·정서적 지원. 솔직할수록 현실적인 설계가 됩니다.',req:1},
+ {id:'self',type:'textarea',t:'부모님 본인의 진로를 돌아보면, 후회와 만족은?',s:'부모의 경험은 아이에게 거는 기대의 뿌리가 되곤 합니다.',opt:1},
+ {id:'pworry',type:'textarea',t:'아이에 대한 가장 큰 걱정 한 가지는?',req:1},
+];
+
+/* ================= state ================= */
+var mode=null, Q=[], idx=-1, ans={}, agreed=false;
+var stage=document.getElementById('stage');
+var skyBox=document.getElementById('skyBox');
+
+/* ================= constellation ================= */
+function buildSky(){
+  var svg=document.getElementById('sky');
+  svg.innerHTML='';
+  var n=Q.length, W=600, H=64, pts=[], i;
+  for(i=0;i<n;i++){
+    var x=30+(W-60)*(i/(n-1||1));
+    var y=H/2+Math.sin(i*1.7+0.6)*16+(i%3===0?-4:5);
+    pts.push([x,y]);
+  }
+  for(i=0;i<n-1;i++){
+    var l=document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',pts[i][0]);l.setAttribute('y1',pts[i][1]);
+    l.setAttribute('x2',pts[i+1][0]);l.setAttribute('y2',pts[i+1][1]);
+    l.setAttribute('class','cline');l.dataset.i=i;
+    svg.appendChild(l);
+  }
+  pts.forEach(function(p,i){
+    var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',p[0]);c.setAttribute('cy',p[1]);c.setAttribute('r',i%4===0?4:3);
+    c.setAttribute('class','cstar');c.dataset.i=i;
+    svg.appendChild(c);
+  });
+}
+function litSky(count,final){
+  document.querySelectorAll('.cstar').forEach(function(c){
+    var i=+c.dataset.i;
+    c.classList.toggle('on',i<count);
+    c.classList.toggle('glow',!!final||i===count-1);
+  });
+  document.querySelectorAll('.cline').forEach(function(l){
+    l.classList.toggle('on',+l.dataset.i<count-1);
+  });
+  document.getElementById('skyCount').textContent=Math.min(count,Q.length)+' / '+Q.length;
+}
+
+/* ================= helpers ================= */
+function esc(s){return (s||'').replace(/[&<>"]/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]})}
+function toast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;
+  t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200);
+}
+function show(html){
+  var old=stage.querySelector('.screen');
+  function go(){
+    stage.innerHTML='<div class="screen">'+html+'</div>';
+    window.scrollTo({top:0});
+  }
+  if(old){old.classList.add('leaving');setTimeout(go,220);}else go();
+}
+
+/* ================= screens ================= */
+function renderStart(){
+  skyBox.style.display='none';
+  show(
+    '<div class="bobRow"><span>🧭</span><span>✨</span><span>🔮</span><span>🚀</span></div>'+
+    '<div class="hero-badge"><i></i>CAREER COMPASS · 접수 카드</div>'+
+    '<div class="big-title">모든 사람은<br>자기만의 <em class="fun">별자리</em>를<br>갖고 태어나.</div>'+
+    '<p class="sub" style="margin-top:16px">응, 너도야. 진짜로. 🌟<br>질문에 답할 때마다 별이 하나씩 켜지고,<br>다 끝나면 너만의 별자리가 완성돼.</p>'+
+    '<div class="funny">📢 공지: 정답 없음 · 오답 없음 · 채점 없음.<br>솔직하게 쓸수록 별이 밝아진다는 소문이 있음. (진짜임)</div>'+
+    '<div class="modeCards">'+
+      '<button class="modeCard" data-act="mode" data-arg="student">'+
+        '<span class="ic">🧑‍🚀</span>'+
+        '<span><b>학생용</b><span>14개의 별 · 약 10분 · 노잼 방지 설계</span></span>'+
+        '<span class="go">→</span>'+
+      '</button>'+
+      '<button class="modeCard" data-act="mode" data-arg="parent">'+
+        '<span class="ic">🌙</span>'+
+        '<span><b>부모님용</b><span>10개의 별 · 약 7분 · 잔소리 OFF 모드</span></span>'+
+        '<span class="go">→</span>'+
+      '</button>'+
+    '</div>'+
+    '<div class="credit">made by 귀요미 송이(문정중) 💛</div>'
+  );
+}
+
+function renderConsent(){
+  show(
+    '<div class="qnum">BEFORE WE START</div>'+
+    '<h1>시작 전에,<br>딱 한 가지 약속 🤙</h1>'+
+    '<div class="body">'+
+      '<div class="consentBox">'+
+        '· 여기 적는 내용(생년월일시 포함)은 <b>진로 상담 참고 자료</b>로만 쓰여요.<br>'+
+        '· 사주 해석은 미래를 정하는 게 아니라 <b>타고난 기질을 읽는 참고 틀</b>이에요.<br>'+
+        '· 결과와 검사, 대화를 모두 합쳐서 <b>결정은 언제나 본인이</b> 내려요.<br>'+
+        '· 원하면 언제든 기록 삭제를 요청할 수 있어요.'+
+      '</div>'+
+      '<div class="agree" id="agreeRow" data-act="agree" tabindex="0" role="checkbox" aria-checked="false">'+
+        '<span class="box"><svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5L5 9.5L13 1.5" stroke="#0D1030" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'+
+        '<p>이해했고, 동의해요. 나의 별자리를 찾으러 갈게요.</p>'+
+      '</div>'+
+      '<div class="nav">'+
+        '<button class="btn ghost" data-act="home">←</button>'+
+        '<button class="btn primary" id="consentGo" data-act="next" disabled>별 켜러 가기 ✦</button>'+
+      '</div>'+
+    '</div>'
+  );
+}
+
+function chipBtn(qid,opt,sel,ordIdx){
+  return '<button type="button" class="chip'+(sel?' sel':'')+'" data-act="chip" data-q="'+qid+'" data-arg="'+esc(opt)+'">'+opt+
+    (ordIdx>-1?'<span class="ord">'+(ordIdx+1)+'</span>':'')+'</button>';
+}
+function segRow(field,opts,cur){
+  return '<div class="chips">'+opts.map(function(o){
+    return '<button type="button" class="chip'+(cur===o?' sel':'')+'" data-act="bseg" data-field="'+field+'" data-arg="'+o+'">'+o+'</button>';
+  }).join('')+'</div>';
+}
+
+function inputHTML(q){
+  var v=ans[q.id];
+  if(q.type==='text')
+    return '<input type="text" id="f0" placeholder="'+esc(q.ph||'')+'" value="'+esc(v||'')+'" autocomplete="off">';
+  if(q.type==='textarea')
+    return '<textarea id="f0" placeholder="'+esc(q.ph||'')+'">'+esc(v||'')+'</textarea>';
+  if(q.type==='twotext'){
+    var o=v||{};
+    return '<div class="stack">'+
+      '<div><span class="lbl">💙 '+esc(q.a)+'</span><input type="text" id="f0" value="'+esc(o.a||'')+'" autocomplete="off"></div>'+
+      '<div><span class="lbl">🩶 '+esc(q.b)+'</span><input type="text" id="f1" value="'+esc(o.b||'')+'" autocomplete="off"></div>'+
+    '</div>';
+  }
+  if(q.type==='birth'){
+    var b=v||{};
+    return '<div class="stack">'+
+      '<div><span class="lbl">생년월일</span><input type="date" id="bd" value="'+esc(b.date||'')+'"></div>'+
+      '<div><span class="lbl">양력 / 음력</span>'+segRow('cal',['양력','음력'],b.cal||'양력')+'</div>'+
+      '<div><span class="lbl">태어난 시간 · 꼭 적어주세요! ⏰</span><input type="time" id="bt" value="'+esc(b.time||'')+'"></div>'+
+      '<div><span class="lbl">그 시간, 얼마나 확실해요?</span>'+segRow('cert',['정확해요','±1시간쯤','대충 이 정도'],b.cert||'')+'</div>'+
+      '<div><span class="lbl">태어난 도시</span><input type="text" id="bc" value="'+esc(b.city||'')+'" placeholder="예: 인천" autocomplete="off"></div>'+
+      '<div><span class="lbl">성별</span>'+segRow('sex',['여','남'],b.sex||'')+'</div>'+
+    '</div>';
+  }
+  if(q.type==='chips'){
+    var sel=v||[];
+    return '<div class="chips big">'+q.opts.map(function(o){
+      return chipBtn(q.id,o,sel.indexOf(o)>-1,-1);
+    }).join('')+'</div>';
+  }
+  if(q.type==='rank'){
+    var sr=v||[];
+    return '<div class="chips big" id="rankBox">'+q.opts.map(function(o){
+      var n=sr.indexOf(o);
+      return chipBtn(q.id,o,n>-1,n);
+    }).join('')+'</div>';
+  }
+  return '';
+}
+
+function renderQ(){
+  skyBox.style.display='block';
+  litSky(idx,false);
+  var q=Q[idx];
+  show(
+    '<div class="qnum">STAR '+String(idx+1).padStart(2,'0')+' / '+String(Q.length).padStart(2,'0')+'</div>'+
+    '<h1>'+q.t+'</h1>'+
+    (q.s?'<p class="sub">'+q.s+'</p>':'')+
+    '<div class="body">'+
+      '<div id="qbody">'+inputHTML(q)+'</div>'+
+      '<p class="err" id="err">'+(q.type==='birth'?'날짜·시간·확실성·성별까지 모두 채워야 다음 별이 켜져요 ⏰✦':'여기에 답을 남겨야 다음 별이 켜져요 ✦')+'</p>'+
+      '<div class="nav">'+
+        '<button class="btn ghost" data-act="prev"'+(idx===0?' style="visibility:hidden"':'')+'>←</button>'+
+        '<button class="btn primary" data-act="next">'+(idx===Q.length-1?'별자리 완성하기 ✦':'다음 별 ✦')+'</button>'+
+      '</div>'+
+      (q.opt?'<div class="skip"><button data-act="skip">이건 건너뛸래요</button></div>':'')+
+    '</div>'
+  );
+}
+
+/* ---- collect & validate ---- */
+function saveBirth(){
+  var qid=Q[idx].id;
+  ans[qid]=ans[qid]||{cal:'양력'};
+  var bd=document.getElementById('bd'),bt=document.getElementById('bt'),bc=document.getElementById('bc');
+  if(bd)ans[qid].date=bd.value;
+  if(bt)ans[qid].time=bt.value;
+  if(bc)ans[qid].city=bc.value.trim();
+}
+function collect(){
+  var q=Q[idx];if(!q)return;
+  var f0=document.getElementById('f0'),f1=document.getElementById('f1');
+  if(q.type==='text'||q.type==='textarea'){if(f0)ans[q.id]=f0.value.trim();}
+  if(q.type==='twotext'){if(f0&&f1)ans[q.id]={a:f0.value.trim(),b:f1.value.trim()};}
+  if(q.type==='birth')saveBirth();
+}
+function valid(){
+  var q=Q[idx];if(!q.req)return true;
+  var v=ans[q.id];
+  if(q.type==='birth')return v&&v.date&&v.time&&v.cert&&v.sex;
+  if(q.type==='twotext')return v&&(v.a||v.b);
+  if(q.type==='chips')return v&&v.length>0;
+  if(q.type==='rank')return v&&v.length>=3;
+  return v&&v.length>0;
+}
+
+/* ---- summary ---- */
+function getName(){if(mode==='student')return ans.name||'학생';var p=ans.pname||{};return p.a||'부모님';}
+function summary(){
+  var name=getName(), b=ans.birth||{}, L=[], s;
+  L.push('━━━━━━━━━━━━━━━━━━━━━');
+  L.push('🧭 진로 나침반 접수 카드 ['+(mode==='student'?'학생용':'부모님용')+']');
+  L.push('작성일: '+new Date().toLocaleDateString('ko-KR'));
+  L.push('━━━━━━━━━━━━━━━━━━━━━');
+  L.push('');
+  L.push('■ 기본 정보');
+  if(mode==='student'){
+    L.push('- 이름: '+name);
+    L.push('- 학교/학년: '+(ans.school||'-'));
+  }else{
+    var pn=ans.pname||{}, pb=ans.pbirth||{};
+    L.push('- 부모님 성함: '+(pn.a||'-'));
+    L.push('- 자녀: '+(pn.b||'-'));
+    L.push('');
+    L.push('■ 부모님 명리 정보');
+    L.push('- 생년월일: '+(pb.date||'-')+' ('+(pb.cal||'양력')+')');
+    L.push('- 출생 시간: '+(pb.time||'-')+' / 확실성: '+(pb.cert||'-'));
+    L.push('- 출생 도시: '+(pb.city||'-')+' / 성별: '+(pb.sex||'-'));
+  }
+  L.push('');
+  L.push(mode==='student'?'■ 명리 참고 정보':'■ 자녀 명리 정보');
+  L.push('- 생년월일: '+(b.date||'-')+' ('+(b.cal||'양력')+')');
+  L.push('- 출생 시간: '+(b.time||'모름')+' / 확실성: '+(b.cert||'-'));
+  L.push('- 출생 도시: '+(b.city||'-')+' / 성별: '+(b.sex||'-'));
+  if(mode==='student'&&ans.events)L.push('- 큰 변화가 있던 해: '+ans.events);
+  L.push('');
+  if(mode==='student'){
+    L.push('■ 흥미·강점 신호');
+    L.push('- 몰입하는 활동: '+(ans.flow||'-'));
+    s=ans.subj||{};
+    L.push('- 좋아하는 과목/이유: '+(s.a||'-'));
+    L.push('- 싫어하는 과목/이유: '+(s.b||'-'));
+    L.push('- 남들이 인정하는 강점: '+(ans.praise||'-'));
+    L.push('- 절대 하기 싫은 일: '+(ans.never||'-'));
+    L.push('- 부러운 사람/이유: '+(ans.envy||'-'));
+    L.push('');
+    L.push('■ 가치관·스타일');
+    L.push('- 직업 가치 순위: '+((ans.rank||[]).map(function(x,i){return (i+1)+'.'+x.replace(/^\S+\s/,'')}).join(' → ')||'-'));
+    L.push('- 잘 되는 학습 방식: '+((ans.study||[]).map(function(x){return x.replace(/^\S+\s/,'')}).join(', ')||'-'));
+    L.push('');
+    L.push('■ 미래상·고민');
+    L.push('- 10년 뒤 하루: '+(ans.future||'-'));
+    L.push('- 진로 걱정: '+(ans.worry||'없음'));
+    L.push('- 상담에서 알고 싶은 것: '+(ans.want||'-'));
+  }else{
+    L.push('■ 부모가 본 아이');
+    L.push('- 몰입하는 순간: '+(ans.immerse||'-'));
+    L.push('- 변하지 않는 특성: '+(ans.trait||'-'));
+    L.push('');
+    L.push('■ 기대와 갈등');
+    L.push('- 기대 진로/이유: '+(ans.hope||'-'));
+    L.push('- 진로 대화 갈등: '+(ans.conflict||'-'));
+    L.push('- 지원 가능 범위: '+(ans.support||'-'));
+    L.push('- 부모 본인의 진로 후회/만족: '+(ans.self||'-'));
+    L.push('- 가장 큰 걱정: '+(ans.pworry||'-'));
+  }
+  L.push('');
+  L.push('※ 명리 해석은 기질·흐름의 참고 자료이며 미래를 확정하지 않음.');
+  L.push('※ 표준 진로검사·상담 내용과 함께 종합하고, 결정은 본인이 함.');
+  return L.join('\n');
+}
+
+function renderDone(){
+  litSky(Q.length,true);
+  var name=getName();
+  document.getElementById('skyName').textContent=name+'의 별자리';
+  show(
+    '<div class="doneStar">🌟</div>'+
+    '<h1 style="text-align:center;margin-top:10px"><em>'+esc(name)+'</em>의 별자리,<br>완성!</h1>'+
+    '<p class="sub" style="text-align:center">아래 카드가 상담의 지도가 될 거예요.</p>'+
+    '<div class="summary">'+esc(summary())+'</div>'+
+    '<div class="nav">'+
+      '<button class="btn gold" data-act="copy">📋 복사하기</button>'+
+      '<button class="btn cloud" data-act="sheet">☁️ 시트로 보내기</button>'+
+    '</div>'+
+    '<div class="skip"><button data-act="home">처음으로 돌아가기</button></div>'
+  );
+}
+
+/* ---- actions (event delegation: 클릭 문제 해결의 핵심) ---- */
+var ACT={
+  mode:function(arg){
+    mode=arg;Q=(arg==='student'?STUDENT_Q:PARENT_Q);
+    ans={};agreed=false;idx=-1;buildSky();renderConsent();
+  },
+  home:function(){renderStart();},
+  agree:function(_,el){
+    agreed=!agreed;el.classList.toggle('on',agreed);
+    el.setAttribute('aria-checked',agreed);
+    var g=document.getElementById('consentGo');if(g)g.disabled=!agreed;
+  },
+  next:function(){
+    if(idx>=0){collect();
+      if(!valid()){var e=document.getElementById('err');if(e)e.style.display='block';return;}
+    }
+    idx++;
+    if(idx>=Q.length){renderDone();return;}
+    renderQ();
+  },
+  prev:function(){if(idx>0){collect();idx--;renderQ();}},
+  skip:function(){ans[Q[idx].id]='';idx++;
+    if(idx>=Q.length){renderDone();return;}renderQ();},
+  chip:function(arg,el){
+    var qid=el.dataset.q, q=Q[idx];
+    ans[qid]=ans[qid]||[];
+    var i=ans[qid].indexOf(arg);
+    if(q.type==='rank'){
+      if(i>-1)ans[qid].splice(i,1);else ans[qid].push(arg);
+      var box=document.getElementById('rankBox');
+      if(box)box.innerHTML=q.opts.map(function(o){
+        var n=ans[qid].indexOf(o);return chipBtn(qid,o,n>-1,n);
+      }).join('');
+    }else{
+      if(i>-1){ans[qid].splice(i,1);el.classList.remove('sel');}
+      else{ans[qid].push(arg);el.classList.add('sel');}
+    }
+  },
+  bseg:function(arg,el){
+    saveBirth();
+    ans[Q[idx].id][el.dataset.field]=arg;
+    var q=Q[idx];
+    document.getElementById('qbody').innerHTML=inputHTML(q);
+  },
+  copy:function(){
+    var txt=summary();
+    function fallback(){
+      var ta=document.createElement('textarea');ta.value=txt;
+      ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.focus();ta.select();
+      try{document.execCommand('copy');toast('복사됐어요 ✓');}
+      catch(e){toast('길게 눌러 직접 복사해 주세요');}
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){toast('복사됐어요 ✓')}).catch(fallback);
+    }else fallback();
+  },
+  sheet:function(){
+    if(!SHEET_URL){toast('선생님이 아직 시트 주소를 설정하지 않았어요');return;}
+    var b=ans.birth||{};
+    var payload={
+      mode:mode==='student'?'학생':'부모',
+      name:getName()+(mode==='parent'&&ans.pname&&ans.pname.b?' ('+ans.pname.b+')':''),
+      birthDate:b.date||'', birthCal:b.cal||'양력', birthTime:b.time||'',
+      birthCert:b.cert||'', birthCity:b.city||'', sex:b.sex||'',
+      summary:summary()
+    };
+    fetch(SHEET_URL,{method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify(payload)})
+    .then(function(){toast('구글 시트로 보냈어요 ☁️✓');})
+    .catch(function(){toast('전송 실패 — 인터넷 연결을 확인해 주세요');});
+  }
+};
+
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-act]');
+  if(!el||el.disabled)return;
+  var fn=ACT[el.dataset.act];
+  if(fn)fn(el.dataset.arg,el);
+});
+document.addEventListener('keydown',function(e){
+  var el=e.target;
+  if(el.id==='agreeRow'&&(e.key===' '||e.key==='Enter')){e.preventDefault();ACT.agree(null,el);}
+  if(e.key==='Enter'&&el.tagName==='INPUT'&&el.type==='text'){e.preventDefault();ACT.next();}
+});
+
+renderStart();
+</script>
+</body>
+</html>
